@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Command Dashboard — SAAHAYAK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --void:#0A0E12; --panel:#121922; --panel-raised:#1A232D; --hairline:#232E3A;
+    --text:#EDF3F6; --muted:#8493A0;
+    --red:#FF3B30; --red-dim:#4A1712;
+    --amber:#FFB020; --amber-dim:#4A3308;
+    --teal:#17D9A3; --teal-dim:#0B3F32;
+    --font-display:'Big Shoulders Display',sans-serif;
+    --font-body:'Inter',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--void);color:var(--text);font-family:var(--font-body);width:100%;overflow-x:hidden;}
+  ::selection{background:var(--red);color:#fff;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+  select,input{font-family:inherit;}
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-track{background:var(--void);}
+  ::-webkit-scrollbar-thumb{background:var(--hairline);border-radius:4px;}
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important;}
+  }
+  .leaflet-control-attribution{display:none !important;}
+
+  .topnav{
+    position:sticky;top:0;z-index:50;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 24px;background:rgba(10,14,18,.88);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--hairline);
+    gap:16px;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-mark{
+    width:34px;height:34px;border-radius:8px;background:linear-gradient(145deg,var(--red),#B8241B);
+    display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:900;
+    font-size:18px;color:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.08), 0 6px 16px rgba(255,59,48,.35);
+    flex-shrink:0;
+  }
+  .brand-text{font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:.5px;}
+  .brand-sub{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+  .conn-pill{
+    display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;
+    border:1px solid var(--hairline);background:var(--panel);padding:6px 12px;border-radius:999px;color:var(--muted);
+  }
+  .conn-pill.online{color:var(--teal);border-color:var(--teal-dim);background:var(--teal-dim);}
+  .conn-dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+
+  .dash-wrap{max-width:1400px;margin:0 auto;padding:36px 24px 90px;}
+  .dash-top{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;margin-bottom:20px;}
+  .dash-top h2{font-family:var(--font-display);font-weight:800;font-size:34px;}
+
+  .control-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .stat-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .stat-chip{background:var(--panel);border:1px solid var(--hairline);border-radius:10px;padding:9px 16px;text-align:center;min-width:90px;}
+  .stat-chip .n{font-family:var(--font-display);font-weight:800;font-size:22px;}
+  .stat-chip .l{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+  .stat-chip.red .n{color:var(--red);}
+  .stat-chip.amber .n{color:var(--amber);}
+  .stat-chip.teal .n{color:var(--teal);}
+
+  .type-select{
+    background:var(--panel);border:1px solid var(--hairline);color:var(--text);
+    padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;
+  }
+  .beep-all-btn{
+    background:var(--red);color:#fff;padding:10px 18px;border-radius:10px;
+    font-size:13px;font-weight:700;box-shadow:0 6px 18px rgba(255,59,48,.3);
+    transition:transform .15s;white-space:nowrap;
+  }
+  .beep-all-btn:active{transform:scale(.96);}
+  .beep-all-btn.stop{background:var(--panel-raised);color:var(--red);border:1px solid var(--red);box-shadow:none;}
+
+  .dash-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:18px;}
+  @media (max-width:980px){.dash-grid{grid-template-columns:1fr;}}
+  #map{height:420px;border-radius:16px;border:1px solid var(--hairline);overflow:hidden;filter:saturate(.75) brightness(.9);}
+  .legend{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap;font-family:var(--font-mono);font-size:10.5px;color:var(--muted);}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend i{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+  /* --- Declare Danger Zone form --- */
+  .zone-create-card{
+    background:var(--panel);border:1px solid var(--hairline);border-radius:16px;padding:18px;margin-top:16px;
+    display:flex;flex-direction:column;gap:12px;
+  }
+  .zone-create-card h4{font-family:var(--font-display);font-weight:700;font-size:17px;}
+  .zone-form-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:10px;}
+  @media (max-width:760px){.zone-form-grid{grid-template-columns:1fr 1fr;}}
+  .zf label{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;}
+  .zf input{
+    width:100%;margin-top:5px;padding:9px 10px;border-radius:8px;border:1px solid var(--hairline);
+    background:var(--panel-raised);color:var(--text);font-size:13px;
+  }
+  .zf input:focus{outline:2px solid var(--amber);outline-offset:1px;}
+  .zone-form-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .zone-form-actions button{
+    padding:9px 16px;border-radius:8px;font-size:12.5px;font-weight:700;
+  }
+  #useCenterBtn{border:1px solid var(--hairline);color:var(--text);background:var(--panel-raised);}
+  #addZoneBtn{background:var(--amber);color:#241a02;}
+  #addZoneBtn:active, #useCenterBtn:active{transform:scale(.97);}
+
+  /* --- individual zone cards --- */
+  .zone-list{display:flex;flex-direction:column;gap:14px;margin-top:14px;}
+  .zone-panel{
+    background:var(--panel);border:1px solid var(--amber-dim);border-radius:16px;padding:18px;
+    display:flex;flex-direction:column;gap:12px;
+  }
+  .zone-panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+  .zone-panel-head h4{font-family:var(--font-display);font-weight:700;font-size:17px;color:var(--amber);}
+  .zone-panel-head .loc{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:4px;}
+  .remove-zone-btn{
+    font-size:10px;font-family:var(--font-mono);padding:5px 10px;border-radius:6px;
+    border:1px solid var(--red-dim);color:var(--red);background:var(--red-dim);flex-shrink:0;
+  }
+  .zone-counts{display:flex;gap:10px;flex-wrap:wrap;}
+  .zc{font-family:var(--font-mono);font-size:10px;padding:4px 10px;border-radius:999px;letter-spacing:.5px;}
+  .zc.in{background:var(--amber-dim);color:var(--amber);}
+  .zc.near{background:var(--panel-raised);color:var(--muted);border:1px solid var(--hairline);}
+  .zone-occupants{display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;padding-right:4px;}
+  .zone-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel-raised);border:1px solid var(--hairline);border-radius:8px;padding:8px 10px;}
+  .zone-row.is-in{border-color:var(--amber-dim);}
+  .zone-row .info .name{font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;}
+  .zone-row .info .meta{font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-top:2px;}
+  .near-tag{font-family:var(--font-mono);font-size:7.5px;background:var(--panel);color:var(--muted);padding:1px 6px;border-radius:999px;}
+  .zone-row button{font-size:9.5px;font-family:var(--font-mono);padding:4px 8px;border-radius:6px;border:1px solid var(--hairline);flex-shrink:0;}
+  .zone-row button.on{border-color:var(--red);background:var(--red-dim);color:var(--red);}
+  .zone-empty{color:var(--muted);font-size:12px;text-align:center;padding:14px 6px;}
+  .zone-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .zone-actions button{
+    font-size:11px;font-family:var(--font-mono);padding:7px 12px;border-radius:8px;font-weight:700;
+    border:1px solid var(--hairline);color:var(--text);background:var(--panel-raised);
+  }
+  .zone-actions button.beep-active{border-color:var(--red);background:var(--red-dim);color:var(--red);}
+  .no-zones-note{color:var(--muted);font-size:12.5px;text-align:center;padding:16px 6px;font-family:var(--font-mono);}
+
+  .side-col{display:flex;flex-direction:column;gap:18px;}
+
+  .registry{background:var(--panel);border:1px solid var(--hairline);border-radius:16px;padding:18px;max-height:220px;display:flex;flex-direction:column;gap:10px;overflow:hidden;}
+  .registry h4{font-family:var(--font-display);font-weight:700;font-size:17px;}
+  .registry-list{overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px;}
+  .reg-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel-raised);border:1px solid var(--hairline);border-radius:8px;padding:8px 10px;}
+  .reg-row.in-zone{border-color:var(--amber);}
+  .reg-row .info .name{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;}
+  .reg-row .info .seen{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);}
+  .zone-badge{font-family:var(--font-mono);font-size:8px;background:var(--amber-dim);color:var(--amber);padding:2px 6px;border-radius:999px;letter-spacing:.5px;}
+  .loc-warn{font-family:var(--font-mono);font-size:8px;background:var(--red-dim);color:var(--red);padding:2px 6px;border-radius:999px;letter-spacing:.5px;}
+  .reg-row button{font-size:10px;font-family:var(--font-mono);padding:5px 9px;border-radius:6px;border:1px solid var(--hairline);flex-shrink:0;}
+  .reg-row button.on{border-color:var(--red);background:var(--red-dim);color:var(--red);}
+  .reg-empty{color:var(--muted);font-size:12.5px;text-align:center;padding:16px 6px;}
+
+  .feed{background:var(--panel);border:1px solid var(--hairline);border-radius:16px;padding:18px;max-height:420px;display:flex;flex-direction:column;gap:10px;overflow:hidden;flex:1;}
+  .feed h4{font-family:var(--font-display);font-weight:700;font-size:17px;margin-bottom:2px;}
+  .feed-list{overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px;}
+  .alert-card{
+    background:var(--panel-raised);border:1px solid var(--hairline);border-left:3px solid var(--red);
+    border-radius:10px;padding:12px 14px;animation:cardIn .4s ease;
+  }
+  @keyframes cardIn{from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:translateX(0);}}
+  .alert-card.zone{border-left-color:var(--amber);}
+  .alert-card.ack{opacity:.55;}
+  .ac-top{display:flex;justify-content:space-between;align-items:center;}
+  .ac-name{font-weight:700;font-size:13.5px;}
+  .ac-type{font-family:var(--font-mono);font-size:9px;color:var(--amber);text-transform:uppercase;}
+  .alert-card:not(.zone) .ac-type{color:var(--red);}
+  .ac-meta{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-top:6px;line-height:1.6;}
+  .ac-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .ac-actions button{font-size:10.5px;font-family:var(--font-mono);padding:5px 10px;border-radius:6px;border:1px solid var(--hairline);color:var(--text);}
+  .ac-actions button:hover{border-color:var(--teal);}
+  .ac-actions button.beep-on{border-color:var(--red);background:var(--red-dim);color:var(--red);}
+  .feed-empty{color:var(--muted);font-size:13px;text-align:center;padding:40px 10px;}
+</style>
+</head>
+<body>
+
+  <nav class="topnav">
+    <div class="brand">
+      <div class="brand-mark">S</div>
+      <div>
+        <div class="brand-text">SAAHAYAK</div>
+        <div class="brand-sub"></div>
+      </div>
+    </div>
+    <div class="conn-pill" id="connPill"><span class="conn-dot"></span><span id="connText">Connecting…</span></div>
+  </nav>
+
+  <main>
+    <div class="dash-wrap">
+      <div class="dash-top">
+        <h2>Command Dashboard</h2>
+        <div class="control-row">
+          <div class="stat-row">
+            <div class="stat-chip teal"><div class="n" id="statReg">0</div><div class="l">Registered</div></div>
+            <div class="stat-chip red"><div class="n" id="statActive">0</div><div class="l">Active</div></div>
+            <div class="stat-chip amber"><div class="n" id="statZone">0</div><div class="l">In Zones</div></div>
+          </div>
+          <select class="type-select" id="emergencyType">
+            <option value="General">General Emergency</option>
+            <option value="Fire">Fire</option>
+            <option value="Flood">Flood</option>
+            <option value="Earthquake">Earthquake</option>
+            <option value="Medical">Medical</option>
+            <option value="Security">Security Threat</option>
+            <option value="Storm">Storm</option>
+          </select>
+          <button class="beep-all-btn" id="beepAllBtn">🔔 Beep All Registered</button>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+        <div>
+          <div id="map"></div>
+          <div class="legend">
+            <span><i style="background:#FF3B30"></i> Manual SOS</span>
+            <span><i style="background:#fdb227"></i> Danger-zone auto-alert</span>
+            <span><i style="background:#17D9A3"></i> Acknowledged</span>
+            <span><i style="background:#4A5A6A"></i> Registered citizen</span>
+          </div>
+
+          <!-- Declare a danger zone yourself: reason + location + radius + buffer -->
+          <div class="zone-create-card">
+            <h4> Declare Danger Zone</h4>
+            <div class="zone-form-grid">
+              <div class="zf">
+                <label>Reason</label>
+                <input id="zoneLabel" placeholder="e.g. Flooded river belt">
+              </div>
+              <div class="zf">
+                <label>Latitude</label>
+                <input id="zoneLat" type="number" step="0.0001" placeholder="28.6280">
+              </div>
+              <div class="zf">
+                <label>Longitude</label>
+                <input id="zoneLng" type="number" step="0.0001" placeholder="77.2450">
+              </div>
+              <div class="zf">
+                <label>Radius (m)</label>
+                <input id="zoneRadius" type="number" value="2500">
+              </div>
+              <div class="zf">
+                <label>Alert buffer (m)</label>
+                <input id="zoneBuffer" type="number" value="1500">
+              </div>
+            </div>
+            <div class="zone-form-actions">
+              <button id="useCenterBtn"> Use Current location</button>
+              <button id="addZoneBtn">+ Add Danger Zone</button>
+            </div>
+          </div>
+
+          <div class="zone-list" id="zoneList">
+            <div class="no-zones-note"></div>
+          </div>
+        </div>
+
+        <div class="side-col">
+          <div class="registry">
+            <h4>Registered Citizens</h4>
+            <div class="registry-list" id="registryList">
+              <div class="reg-empty">No citizens registered yet.</div>
+            </div>
+          </div>
+
+          <div class="feed">
+            <h4>Live Alert Feed</h4>
+            <div class="feed-list" id="feedList">
+              <div class="feed-empty">No alerts yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, remove, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD3weXtGJtSACqFyEzFpr7BYoYrbtQtkzg",
+    authDomain: "saahayak-db.firebaseapp.com",
+    databaseURL: "https://saahayak-db-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "saahayak-db",
+    storageBucket: "saahayak-db.firebasestorage.app",
+    messagingSenderId: "808709229618",
+    appId: "1:808709229618:web:375d778ee5577a00dfc02b"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  function haversine(lat1,lng1,lat2,lng2){
+    const R=6371000, toRad=d=>d*Math.PI/180;
+    const dLat=toRad(lat2-lat1), dLng=toRad(lng2-lng1);
+    const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+  function makeZoneId(){ return 'ZN-' + Math.random().toString(36).slice(2,8).toUpperCase(); }
+
+  let alertsCache = {}, pingsCache = {}, citizensCache = {}, zonesCache = {};
+
+  /* ============ ZONE MANAGEMENT (server/operator side) ============ */
+  async function addZone(){
+    const label = document.getElementById('zoneLabel').value.trim() || 'Unlabeled danger zone';
+    const lat = parseFloat(document.getElementById('zoneLat').value);
+    const lng = parseFloat(document.getElementById('zoneLng').value);
+    const radius = parseFloat(document.getElementById('zoneRadius').value) || 2500;
+    const buffer = parseFloat(document.getElementById('zoneBuffer').value) || 0;
+
+    if(isNaN(lat) || isNaN(lng)){
+      alert('Please enter a valid latitude and longitude (or click "Use Current location").');
+      return;
+    }
+
+    const id = makeZoneId();
+    await set(ref(db, 'zones/' + id), {
+      label, lat, lng, radius, buffer, createdAt: new Date().toISOString()
+    });
+
+    document.getElementById('zoneLabel').value = '';
+    document.getElementById('zoneLat').value = '';
+    document.getElementById('zoneLng').value = '';
+    document.getElementById('zoneRadius').value = 2500;
+    document.getElementById('zoneBuffer').value = 1500;
+  }
+  async function removeZone(id){
+    await remove(ref(db, 'zones/' + id));
+  }
+  function useMapCenter(){
+    const c = map.getCenter();
+    document.getElementById('zoneLat').value = c.lat.toFixed(4);
+    document.getElementById('zoneLng').value = c.lng.toFixed(4);
+  }
+
+  /* Distance-based classification of one citizen against one zone. */
+  function classify(citizen, zone){
+    if(citizen.locationAvailable === false || citizen.lat == null || citizen.lng == null) return { status: 'unknown', dist: null };
+    const dist = haversine(citizen.lat, citizen.lng, zone.lat, zone.lng);
+    if(dist <= zone.radius) return { status: 'in', dist };
+    if(dist <= zone.radius + (zone.buffer || 0)) return { status: 'near', dist };
+    return { status: 'out', dist };
+  }
+
+  /* ============ BEEP CONTROLS ============ */
+  async function sendPing(deviceId, type){ await set(ref(db, 'pings/' + deviceId), { active: true, type }); }
+  async function stopPing(deviceId){ await remove(ref(db, 'pings/' + deviceId)); }
+  function togglePing(deviceId){
+    if(!deviceId){ alert('This entry has no device id.'); return; }
+    const type = document.getElementById('emergencyType').value;
+    if(pingsCache[deviceId] && pingsCache[deviceId].active) stopPing(deviceId);
+    else sendPing(deviceId, type);
+  }
+  function beepAllRegistered(){
+    const ids = Object.keys(citizensCache);
+    if(ids.length === 0){ alert('No registered citizens yet.'); return; }
+    const type = document.getElementById('emergencyType').value;
+    const allOn = ids.every(id => pingsCache[id] && pingsCache[id].active);
+    ids.forEach(id => { if(allOn) stopPing(id); else sendPing(id, type); });
+  }
+  /* Beeps a specific list of device ids (used for per-zone in-zone / in-zone+nearby buttons). */
+  function beepList(ids){
+    if(ids.length === 0){ alert('No one currently matches this group.'); return; }
+    const type = document.getElementById('emergencyType').value;
+    const allOn = ids.every(id => pingsCache[id] && pingsCache[id].active);
+    ids.forEach(id => { if(allOn) stopPing(id); else sendPing(id, type); });
+  }
+  function setStatus(id, status){ update(ref(db, 'alerts/' + id), { status }); }
+
+  /* ============ MAP ============ */
+  const map = L.map('map', { zoomControl:true, attributionControl:false }).setView([28.6139, 77.2090], 11);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom:18 }).addTo(map);
+
+  let alertMarkers = [], citizenMarkers = [], zoneShapes = [];
+
+  function alertColor(a){
+    if(a.status==='acknowledged') return '#17D9A3';
+    return a.type==='zone' ? '#FFB020' : '#FF3B30';
+  }
+  function dot(color, size = 16){
+    return L.divIcon({ className:'', html:`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};box-shadow:0 0 0 4px ${color}33, 0 0 10px ${color}aa;"></div>`, iconSize:[size,size] });
+  }
+
+  function redrawZoneShapes(){
+    zoneShapes.forEach(s => map.removeLayer(s)); zoneShapes = [];
+    Object.values(zonesCache).forEach(zone => {
+      const core = L.circle([zone.lat, zone.lng], {
+        radius: zone.radius, color:'#FFB020', weight:1.5, fillColor:'#FFB020', fillOpacity:0.15
+      }).addTo(map).bindPopup(`<b>${zone.label}</b><br>Danger zone core (${zone.radius}m)`);
+      zoneShapes.push(core);
+      if(zone.buffer > 0){
+        const buf = L.circle([zone.lat, zone.lng], {
+          radius: zone.radius + zone.buffer, color:'#8493A0', weight:1, dashArray:'6,6', fillOpacity:0
+        }).addTo(map).bindPopup(`<b>${zone.label}</b><br>Alert buffer (+${zone.buffer}m)`);
+        zoneShapes.push(buf);
+      }
+    });
+  }
+
+  /* ============ MAIN RENDER ============ */
+  function renderDashboard(){
+    const arr = Object.values(alertsCache).sort((a,b) => new Date(b.time) - new Date(a.time));
+    const regIds = Object.keys(citizensCache);
+    const zoneEntries = Object.entries(zonesCache);
+
+    /* alert markers */
+    alertMarkers.forEach(m=>map.removeLayer(m)); alertMarkers=[];
+    arr.forEach(a=>{
+      const m = L.marker([a.lat,a.lng], {icon: dot(alertColor(a))}).addTo(map)
+        .bindPopup(`<b>${a.name}</b><br>${a.type==='zone'?'Danger-zone auto-alert':'Manual SOS'}<br>${new Date(a.time).toLocaleString()}`);
+      alertMarkers.push(m);
+    });
+
+    /* citizen markers + overall in-any-zone flag for badges/stats */
+    const inAnyZone = {}; // deviceId -> true if inside ANY zone
+    regIds.forEach(id=>{
+      const c = citizensCache[id];
+      let inside = false;
+      zoneEntries.forEach(([zid, zone]) => { if(classify(c, zone).status === 'in') inside = true; });
+      inAnyZone[id] = inside;
+    });
+
+    citizenMarkers.forEach(m=>map.removeLayer(m)); citizenMarkers=[];
+    regIds.forEach(id=>{
+      const c = citizensCache[id];
+      if(c.locationAvailable === false || c.lat == null) return;
+      const color = inAnyZone[id] ? '#FFB020' : '#4A5A6A';
+      const m = L.marker([c.lat, c.lng], {icon: dot(color, 11)}).addTo(map)
+        .bindPopup(`<b>${c.name}</b><br>Registered citizen${inAnyZone[id] ? ' — inside a danger zone' : ''}<br>last seen ${new Date(c.lastSeen).toLocaleTimeString()}`);
+      citizenMarkers.push(m);
+    });
+
+    redrawZoneShapes();
+
+    /* stats */
+    document.getElementById('statReg').textContent = regIds.length;
+    document.getElementById('statActive').textContent = arr.filter(a=>a.status!=='acknowledged' && a.status!=='dismissed').length;
+    document.getElementById('statZone').textContent = regIds.filter(id => inAnyZone[id]).length;
+
+    const allOn = regIds.length>0 && regIds.every(id => pingsCache[id] && pingsCache[id].active);
+    const beepAllBtn = document.getElementById('beepAllBtn');
+    beepAllBtn.textContent = allOn ? '🔕 Stop All Beeps' : '🔔 Beep All Registered';
+    beepAllBtn.classList.toggle('stop', allOn);
+
+    /* --- zone cards --- */
+    const zoneList = document.getElementById('zoneList');
+    if(zoneEntries.length === 0){
+      zoneList.innerHTML = '<div class="no-zones-note"></div>';
+    }else{
+      zoneList.innerHTML = zoneEntries.map(([zid, zone]) => {
+        const inIds = [], nearIds = [];
+        regIds.forEach(id => {
+          const res = classify(citizensCache[id], zone);
+          if(res.status === 'in') inIds.push(id);
+          else if(res.status === 'near') nearIds.push(id);
+        });
+
+        const rows = [
+          ...inIds.map(id => {
+            const c = citizensCache[id];
+            const dist = Math.round(classify(c, zone).dist);
+            const isBeeping = !!(pingsCache[id] && pingsCache[id].active);
+            return `<div class="zone-row is-in">
+                      <div class="info"><div class="name">${c.name}</div><div class="meta">${dist}m from center — inside zone</div></div>
+                      <button class="${isBeeping?'on':''}" data-action="ping" data-id="${id}">${isBeeping ? '🔕' : '🔔'}</button>
+                    </div>`;
+          }),
+          ...nearIds.map(id => {
+            const c = citizensCache[id];
+            const dist = Math.round(classify(c, zone).dist);
+            const isBeeping = !!(pingsCache[id] && pingsCache[id].active);
+            return `<div class="zone-row">
+                      <div class="info"><div class="name">${c.name} <span class="near-tag">NEARBY</span></div><div class="meta">${dist}m from center — in buffer range</div></div>
+                      <button class="${isBeeping?'on':''}" data-action="ping" data-id="${id}">${isBeeping ? '🔕' : '🔔'}</button>
+                    </div>`;
+          })
+        ].join('');
+
+        const inOnBeep = inIds.length>0 && inIds.every(id => pingsCache[id] && pingsCache[id].active);
+        const combinedIds = [...inIds, ...nearIds];
+        const combinedOnBeep = combinedIds.length>0 && combinedIds.every(id => pingsCache[id] && pingsCache[id].active);
+
+        return `
+          <div class="zone-panel">
+            <div class="zone-panel-head">
+              <div>
+                <h4>⚠ ${zone.label}</h4>
+                <div class="loc">${zone.lat.toFixed(4)}, ${zone.lng.toFixed(4)} · ${zone.radius}m radius + ${zone.buffer || 0}m buffer</div>
+              </div>
+              <button class="remove-zone-btn" data-action="removeZone" data-id="${zid}">✕ Remove Zone</button>
+            </div>
+
+            <div class="zone-counts">
+              <span class="zc in">${inIds.length} in zone</span>
+              <span class="zc near">${nearIds.length} nearby</span>
+            </div>
+
+            <div class="zone-occupants">
+              ${rows || '<div class="zone-empty">No registered citizens currently in or near this zone.</div>'}
+            </div>
+
+            <div class="zone-actions">
+              <button class="${inOnBeep ? 'beep-active' : ''}" data-action="beepZoneIn" data-id="${zid}">${inOnBeep ? '🔕 Stop' : '🔔'} Beep In-Zone (${inIds.length})</button>
+              <button class="${combinedOnBeep ? 'beep-active' : ''}" data-action="beepZoneCombined" data-id="${zid}">${combinedOnBeep ? '🔕 Stop' : '🔔'} Beep Zone + Nearby (${combinedIds.length})</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* registered citizens list */
+    const regList = document.getElementById('registryList');
+    regList.innerHTML = regIds.length === 0
+      ? '<div class="reg-empty">No citizens registered yet.</div>'
+      : regIds.map(id=>{
+          const c = citizensCache[id];
+          const isBeeping = !!(pingsCache[id] && pingsCache[id].active);
+          const badge = c.locationAvailable === false
+            ? '<span class="loc-warn">NO LOC</span>'
+            : (inAnyZone[id] ? '<span class="zone-badge">IN ZONE</span>' : '');
+          return `
+            <div class="reg-row ${inAnyZone[id] ? 'in-zone' : ''}">
+              <div class="info">
+                <div class="name">${c.name} ${badge}</div>
+                <div class="seen">last seen ${new Date(c.lastSeen).toLocaleTimeString()}</div>
+              </div>
+              <button class="${isBeeping?'on':''}" data-action="ping" data-id="${id}">${isBeeping ? '🔕 Stop' : '🔔 Beep'}</button>
+            </div>`;
+        }).join('');
+
+    /* alert feed */
+    const feed = document.getElementById('feedList');
+    feed.innerHTML = arr.length === 0
+      ? '<div class="feed-empty">No alerts yet.</div>'
+      : arr.map(a=>{
+          const isBeeping = !!(pingsCache[a.deviceId] && pingsCache[a.deviceId].active);
+          return `
+          <div class="alert-card ${a.type==='zone'?'zone':''} ${a.status==='acknowledged'?'ack':''}">
+            <div class="ac-top">
+              <span class="ac-name">${a.name}</span>
+              <span class="ac-type">${a.type==='zone'?'Zone Flag':'SOS'}</span>
+            </div>
+            <div class="ac-meta">${a.id} · ${a.lat.toFixed(4)}, ${a.lng.toFixed(4)}<br>${new Date(a.time).toLocaleString()} · status: ${a.status}${a.zoneLabel ? '<br>zone: '+a.zoneLabel : ''}</div>
+            <div class="ac-actions">
+              <button data-action="ack" data-id="${a.id}">Acknowledge</button>
+              <button data-action="dismiss" data-id="${a.id}">Dismiss</button>
+              <button class="${isBeeping ? 'beep-on' : ''}" data-action="ping" data-id="${a.deviceId || ''}">${isBeeping ? '🔕 Stop Beep' : '🔔 Send Beep'}</button>
+            </div>
+          </div>`;
+        }).join('');
+  }
+
+  /* ============ EVENTS ============ */
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if(!btn) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+
+    if(action === 'ping') togglePing(id);
+    if(action === 'ack') setStatus(id, 'acknowledged');
+    if(action === 'dismiss') setStatus(id, 'dismissed');
+    if(action === 'removeZone') removeZone(id);
+    if(action === 'beepZoneIn'){
+      const zone = zonesCache[id];
+      const ids = Object.keys(citizensCache).filter(cid => classify(citizensCache[cid], zone).status === 'in');
+      beepList(ids);
+    }
+    if(action === 'beepZoneCombined'){
+      const zone = zonesCache[id];
+      const ids = Object.keys(citizensCache).filter(cid => {
+        const s = classify(citizensCache[cid], zone).status;
+        return s === 'in' || s === 'near';
+      });
+      beepList(ids);
+    }
+  });
+  document.getElementById('beepAllBtn').addEventListener('click', beepAllRegistered);
+  document.getElementById('addZoneBtn').addEventListener('click', addZone);
+  document.getElementById('useCenterBtn').addEventListener('click', useMapCenter);
+
+  /* ============ LIVE SUBSCRIPTIONS ============ */
+  onValue(ref(db, 'alerts'), (snap) => { alertsCache = snap.val() || {}; renderDashboard(); });
+  onValue(ref(db, 'pings'), (snap) => { pingsCache = snap.val() || {}; renderDashboard(); });
+  onValue(ref(db, 'citizens'), (snap) => { citizensCache = snap.val() || {}; renderDashboard(); });
+  onValue(ref(db, 'zones'), (snap) => { zonesCache = snap.val() || {}; renderDashboard(); });
+
+  onValue(ref(db, '.info/connected'), (snap) => {
+    const pill = document.getElementById('connPill');
+    const text = document.getElementById('connText');
+    if(snap.val() === true){ pill.classList.add('online'); text.textContent = 'CONNECTED'; }
+    else{ pill.classList.remove('online'); text.textContent = 'CONNECTING…'; }
+  });
+</script>
+</body>
+</html>
